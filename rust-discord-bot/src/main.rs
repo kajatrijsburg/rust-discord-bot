@@ -27,7 +27,6 @@ use tracing::{error, info};
 use crate::commands::math::*;
 use crate::commands::meta::*;
 use crate::commands::owner::*;
-use crate::commands::quote::*;
 
 pub struct ShardManagerContainer;
 
@@ -50,14 +49,14 @@ impl EventHandler for Handler {
 
 //list of used commands
 #[group]
-#[commands(multiply, ping, quit, quote)]
+#[commands(multiply, ping, quit)]
 struct General;
 
 #[tokio::main]
 async fn main() {
     // This will load the environment variables located at `./.env`, relative to
     // the CWD. See `./.env.example` for an example on how to structure this.
-    dotenv::dotenv().expect("Failed to load .env file");
+    dotenv::dotenv().ok();
 
     // Initialize the logger to use environment variables.
     //
@@ -76,13 +75,14 @@ async fn main() {
             owners.insert(info.owner.id);
 
             (owners, info.id)
-        },
+        }
         Err(why) => panic!("Could not access application info: {:?}", why),
     };
 
     // Create the framework
-    let framework =
-        StandardFramework::new().configure(|c| c.owners(owners).prefix("~")).group(&GENERAL_GROUP);
+    let framework = StandardFramework::new()
+        .configure(|c| c.owners(owners).prefix("~"))
+        .group(&GENERAL_GROUP);
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT;
@@ -100,7 +100,9 @@ async fn main() {
     let shard_manager = client.shard_manager.clone();
 
     tokio::spawn(async move {
-        tokio::signal::ctrl_c().await.expect("Could not register ctrl+c handler");
+        tokio::signal::ctrl_c()
+            .await
+            .expect("Could not register ctrl+c handler");
         shard_manager.lock().await.shutdown_all().await;
     });
 
